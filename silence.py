@@ -28,6 +28,9 @@ print(total_silence_removed)
 exit()
 
 
+
+
+
 multi_piano_roll = multi_piano_roll[:, :, initial_silence: ending_silence]
 
 

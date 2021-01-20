@@ -1,35 +1,59 @@
 
-from torch.utils.data import random_split, IterableDataset, RandomSampler, DataLoader
-from torch.utils.data import random_split
-import os
 import numpy as np
+from torch.utils.data import random_split, IterableDataset, RandomSampler, DataLoader
+import os
 
+
+# L'idea è quella di iniettare nel dataset un po' di noise
+# Ricordiamo che la LSTM e la dense non hanno limiti nell'output:
+# significa che il gradiente fluisce e a fine training ci basta fare una
+# round per ottenere la canzone vera
 
 class MyDataset(IterableDataset):
 
-    def __init__(self, dataset_path):
+    def __init__(self, dataset_path, test = False):
         """
             dataset_path: path to the dataset file [str]
         """
         super().__init__()
         
-        self.inputs = [np.load(f)["arr_0"] for f in os.listdir(dataset_path)[:5]]
+        if(test):
+            raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)[:5]]
+        else:
+            raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)]
+
+        self.inputs = self.preprocess(raw_inputs)
+
+    def preprocess(self, raw_inputs):
+        # Remove silence 
+        for i, multitrack in enumerate(raw_inputs):
+            initial_silence = multitrack.shape[-1]
+            ending_silence = 0
+            for track in multitrack:
+                track_initial_silence = np.min(np.argwhere(track != 0)[:,1])
+                track_ending_silence = np.max(np.argwhere(track != 0)[:,1])
+
+                if(track_initial_silence < initial_silence):
+                    initial_silence = track_initial_silence
+                if(track_ending_silence > ending_silence):
+                    ending_silence = track_ending_silence
+
+            self.inputs[i] = multitrack[:, :, initial_silence : ending_silence]
+
+        # TODO: togli le ottave di troppo
 
     def __iter__(self):
         for i in RandomSampler(self.inputs):
             yield self.inputs[i]
     
-    # def __item__(self, i):
-    #     return 
+    def __getitem__(self, i):
+        return self.inputs[i] 
 
     def __len__(self):
         return len(self.inputs)
 
 
-a = MyDataset("dataset")
-print(a[1])
-# for elem in a:
-#     print(elem.shape)
+
 
 
 # train_length = int(len(dataset) * 0.75)
