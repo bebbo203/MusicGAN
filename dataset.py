@@ -1,4 +1,5 @@
-
+from typing import MutableMapping
+import torch
 import numpy as np
 from torch.utils.data import random_split, IterableDataset, RandomSampler, DataLoader
 import os
@@ -11,13 +12,15 @@ import os
 
 class MyDataset(IterableDataset):
 
-    def __init__(self, dataset_path, test = False):
+    def __init__(self, dataset_path, device = "cuda", test = False):
         """
             dataset_path: path to the dataset file [str]
         """
         super().__init__()
         
-        if(test):
+        self.device = torch.device(device)
+        
+        if test:
             raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)[:5]]
         else:
             raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)]
@@ -26,7 +29,8 @@ class MyDataset(IterableDataset):
 
     def preprocess(self, raw_inputs):
         # Remove silence 
-        for i, multitrack in enumerate(raw_inputs):
+        preprocessed_inputs = []
+        for multitrack in raw_inputs:
             initial_silence = multitrack.shape[-1]
             ending_silence = 0
             for track in multitrack:
@@ -38,13 +42,20 @@ class MyDataset(IterableDataset):
                 if(track_ending_silence > ending_silence):
                     ending_silence = track_ending_silence
 
-            self.inputs[i] = multitrack[:, :, initial_silence : ending_silence]
+            # (instruments, notes, time)
+            multitrack_without_silences = torch.FloatTensor(multitrack[:, :, initial_silence : ending_silence]).to(self.device)
+            # (time, instruments * notes)
+            multitrack_without_silences = multitrack_without_silences.view((-1, multitrack_without_silences.shape[-1])).transpose(0,1)
 
+            preprocessed_inputs.append(multitrack_without_silences)
+
+        return preprocessed_inputs
         # TODO: togli le ottave di troppo
 
+    # Remember that with the noise some values are negative
     def __iter__(self):
         for i in RandomSampler(self.inputs):
-            yield self.inputs[i]
+            yield self.inputs[i] + torch.randn_like(self.inputs[i])
     
     def __getitem__(self, i):
         return self.inputs[i] 

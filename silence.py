@@ -3,6 +3,32 @@ import numpy as np
 
 total_dim = 0
 total_silence_removed = 0
+
+
+exit()
+
+
+
+
+multi_piano_roll = np.load("dataset/track_213.npz")["arr_0"]
+track = multi_piano_roll[0]
+a = np.argwhere(track != 0)[:, 0]
+min_note = np.min(a)
+max_note = np.max(a)
+print(min_note)
+print(max_note)
+diff = -min_note + max_note
+print(diff)
+
+
+
+
+
+
+
+
+
+exit()
 for i in range(5000):
     multi_piano_roll = np.load("dataset/track_"+str(i)+".npz")["arr_0"]
 
