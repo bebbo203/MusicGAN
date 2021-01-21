@@ -1,19 +1,20 @@
 from generator import G
 from discriminator import D
-from dataset import MyDataset
+from dataset import PRollDataset
 import torch
+
 
 def l_g(d_g_false):
     return torch.mean(torch.log(d_g_false))
 
-def l_d(d_true, d_g_false):
-    l1 = -torch.log(d_true)
-    l2 = -l_g(d_g_false)
+def l_d(d_real, d_g_false):
+    l1 = -torch.log(d_real)
+    l2 = -torch.log(d_g_false)
     return torch.mean(l1 + l2)
 
 
-
-dataset = MyDataset("dataset", test=True)
+"""
+dataset = PRollDataset("dataset", test=True)
 song = torch.stack((dataset[0][:500, :], dataset[1][:500, :]), dim=0)
 
 g = G(32, 128*4).to("cuda")
@@ -29,4 +30,4 @@ discriminated_songs_gen_false = discriminated_songs_gen[:, 1]
 d_true = torch.softmax(d(song), dim=1)
 
 print(l_d(d_true, discriminated_songs_gen_false))
-
+"""

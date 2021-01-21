@@ -10,7 +10,7 @@ import os
 # significa che il gradiente fluisce e a fine training ci basta fare una
 # round per ottenere la canzone vera
 
-class MyDataset(IterableDataset):
+class PRollDataset(IterableDataset):
 
     def __init__(self, dataset_path, device = "cuda", test = False):
         """
@@ -21,7 +21,7 @@ class MyDataset(IterableDataset):
         self.device = torch.device(device)
         
         if test:
-            raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)[:5]]
+            raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)[:100]]
         else:
             raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)]
 

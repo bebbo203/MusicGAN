@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
-from torch.nn.modules import dropout
-from dataset import MyDataset
+from torch.nn.modules import dropout, transformer
+from dataset import PRollDataset
 
 
 class D(nn.Module):
@@ -22,9 +22,10 @@ class D(nn.Module):
     # output shape (1, n_time, notes*instruments)
     # but needs a transposition
     def forward(self, x):
-        
         _, (h, _) = self.lstm(x)
-        h = h[2:, :, :].transpose(0,1).reshape(x.shape[0], -1)
+        
+        h = h[2:, :, :].transpose(0,1).reshape(x.shape[0], -1)     
         o = self.linear(h)
+    
         return o
 
