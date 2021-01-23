@@ -8,16 +8,26 @@ class D(nn.Module):
     def __init__(self, input_size):
         super().__init__()
         
-        hidden_size = 32
+        hidden_size_lstm = 32
+        hidden_size2 = 32
+        hidden_size3 = 16
+        
         self.lstm = nn.LSTM(
             input_size = input_size,
-            hidden_size = hidden_size,
+            hidden_size = hidden_size_lstm,
             num_layers = 2,
             batch_first = True,
             dropout = 0.4,
             bidirectional = True)
 
-        self.linear = nn.Linear(hidden_size * 2, 2)
+        self.linear = nn.Sequential(
+            nn.Linear(hidden_size_lstm * 2, hidden_size2),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_size2, hidden_size3),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_size3, 2),
+            nn.Softmax(dim=1)
+        )
 
     # output shape (1, n_time, notes*instruments)
     # but needs a transposition

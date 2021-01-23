@@ -1,3 +1,4 @@
+from numpy.core.numeric import outer
 from torch.serialization import load
 from torch.utils.data import dataloader, dataset
 from generator import G
@@ -7,8 +8,10 @@ from dataset import PRollDataset
 from torch.utils.data.dataloader import DataLoader
 import torch.nn.functional as F
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from torch import optim
 from tqdm.auto import tqdm
+import numpy as np
 
 
 def padder(batch):
@@ -19,12 +22,12 @@ def padder(batch):
     
     for i in range(len(batch)):
         #batch[i] = F.pad(batch[i], pad=(0, 0, 0, max_dim - batch[i].shape[0]))
-        batch[i] = batch[i][:1000, :]
+        batch[i] = batch[i][:500, :]
 
     return torch.stack(batch, dim=0)
 
 
-def train(g, d, loader, g_loss, d_loss, opt_g, opt_d):
+def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d):
     
     g.train()
     d.train()
@@ -37,14 +40,15 @@ def train(g, d, loader, g_loss, d_loss, opt_g, opt_d):
         # discriminator
         opt_d.zero_grad()
         
-        d_real = torch.softmax(d(batch), dim=1)
+        d_real = d(batch)
         
         noise = torch.randn((batch.shape[0], batch.shape[1], NOISE_SIZE)).to(DEVICE)
         g_z = g(noise)
         
-        d_fake = torch.softmax(d(g_z.detach()), dim=1)
+        d_fake = d(g_z.detach())
 
-        loss_d = l_d(d_real[:, 0], d_fake[:, 1])
+        # Remember: [:,0] is the true probability, [:,1] is (1 - [:,0])
+        loss_d = d_loss_function(d_real[:, 0], d_fake[:, 1])
         loss_d.backward()
         opt_d.step()
 
@@ -54,8 +58,8 @@ def train(g, d, loader, g_loss, d_loss, opt_g, opt_d):
         opt_g.zero_grad()
         opt_d.zero_grad()
 
-        d_fake = torch.softmax(d(g_z), dim=1)
-        loss_g = l_g(d_fake[:, 1])
+        d_fake = d(g_z)
+        loss_g = g_loss_function(d_fake[:, 1])
         loss_g.backward()
         opt_g.step()
 
@@ -88,11 +92,30 @@ optimizer_d = optim.Adam(params=d.parameters())
 optimizer_g = optim.Adam(params=g.parameters())
 
 
-
+writer = SummaryWriter()
 EPOCHS = 5
+CHECKPOINT_PATH = "checkpoints/checkpoint_"
 
 for epoch in range(EPOCHS):
-    print(train(g, d, train_loader, l_g, l_d, optimizer_g, optimizer_d))
-        
+    avg_loss_d, avg_loss_g = train(g, d, train_loader, l_g, l_d, optimizer_g, optimizer_d)
+    # Tensboard data
+    writer.add_scalar("Loss/Discriminator", avg_loss_d, epoch)
+    writer.add_scalar("Loss/Generator", avg_loss_g, epoch)
+    # Save model
+    torch.save({
+        "epoch": epoch,
+        "generator": g.state_dict(),
+        "discriminator": d.state_dict(),
+        "optimizer_g": optimizer_g.state_dict(),
+        "optimizer_d": optimizer_d.state_dict(),
+    }, CHECKPOINT_PATH + str(epoch) + ".pt")
+
+
+
+g.eval()
+with torch.no_grad():
+    output = g(torch.randn((1, 500, NOISE_SIZE)).to(DEVICE)).cpu().numpy()
+    np.save("output_test.npy", output)
+
 
 

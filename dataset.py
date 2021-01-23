@@ -47,6 +47,10 @@ class PRollDataset(IterableDataset):
             # (time, instruments * notes)
             multitrack_without_silences = multitrack_without_silences.view((-1, multitrack_without_silences.shape[-1])).transpose(0,1)
 
+            multitrack_without_silences = multitrack_without_silences + torch.randn_like(multitrack_without_silences)
+            multitrack_without_silences = torch.abs(multitrack_without_silences / 127.0)
+
+
             preprocessed_inputs.append(multitrack_without_silences)
 
         return preprocessed_inputs
@@ -55,7 +59,7 @@ class PRollDataset(IterableDataset):
     # Remember that with the noise some values are negative
     def __iter__(self):
         for i in RandomSampler(self.inputs):
-            yield self.inputs[i] + torch.randn_like(self.inputs[i])
+            yield self.inputs[i]
     
     def __getitem__(self, i):
         return self.inputs[i] 
@@ -65,6 +69,10 @@ class PRollDataset(IterableDataset):
 
 
 
+# d = PRollDataset("dataset", test=True)
+# for elem in d:
+#     print(elem)
+#     exit()
 
 
 # train_length = int(len(dataset) * 0.75)
