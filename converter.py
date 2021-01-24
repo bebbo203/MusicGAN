@@ -76,11 +76,11 @@ midi.write("prova.mid")
 
 
 
-multi_piano_roll = np.round(np.load("output_test.npy") * 127.0, decimals=0).astype(np.int)
-song_length = multi_piano_roll.shape[1]
+# multi_piano_roll = np.round(np.load("output_test.npy") * 127.0, decimals=0).astype(np.int)
+# song_length = multi_piano_roll.shape[1]
 
-multi_piano_roll = np.reshape(multi_piano_roll.transpose([0, 2, 1]), (4, 128, song_length))
+# multi_piano_roll = np.reshape(multi_piano_roll.transpose([0, 2, 1]), (4, 128, song_length))
 
-midi = piano_roll_to_pretty_midi(multi_piano_roll)
-midi.write("output_song.mid")
+# midi = piano_roll_to_pretty_midi(multi_piano_roll)
+# midi.write("output_song.mid")
 

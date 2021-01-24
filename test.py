@@ -3,15 +3,59 @@ import pypianoroll
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from converter import *
+from tqdm import tqdm
+
+
+for i, f in enumerate(os.listdir("dataset_preprocessed")):
+    os.rename(os.path.join("./dataset_preprocessed", f), os.path.join("./dataset_preprocessed", f"track_{i}.npz"))
+
+exit()
 
 
 
 
+def get_song_extension(multi_piano_roll):
+    song_ext = 0
+    song_min_note = 128
+    song_max_note = 0
+    for instrument in multi_piano_roll:
+        notes_in_track_idx = np.argwhere(instrument != 0)[:, 0]
+        _min_note = np.min(notes_in_track_idx)
+        if(_min_note < song_min_note):
+            song_min_note = _min_note
+        _max_note = np.max(notes_in_track_idx)
+        if(_max_note > song_max_note):
+            song_max_note = _max_note
+        extension = _max_note - _min_note
+        if(extension > song_ext):
+            song_ext = extension
+    
+    return song_min_note, song_max_note
+
+
+def pad_song(multi_piano_roll):
+    res = np.zeros((4, 128, multi_piano_roll.shape[2]))
+    from_idx = (128 - multi_piano_roll.shape[1]) // 2
+    res[:, from_idx:from_idx+multi_piano_roll.shape[1], :] += multi_piano_roll
+    return res
 
 
 
 
+multi_piano_roll = np.load("dataset/track_10.npz")["arr_0"]
+midi = piano_roll_to_pretty_midi(multi_piano_roll)
+midi.write("before_trim.mid")
 
+
+m, M = get_song_extension(multi_piano_roll)
+
+
+multi_piano_roll = multi_piano_roll[:, m:M+1, :]
+
+multi_piano_roll = pad_song(multi_piano_roll)
+midi = piano_roll_to_pretty_midi(multi_piano_roll)
+midi.write("after_trim.mid")
 
 
 

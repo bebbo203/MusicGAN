@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from torch.utils.data import random_split, IterableDataset, RandomSampler, DataLoader
 import os
+from tqdm.auto import tqdm
 
 
 # L'idea è quella di iniettare nel dataset un po' di noise
@@ -21,16 +22,40 @@ class PRollDataset(IterableDataset):
         self.device = torch.device(device)
         
         if test:
-            raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)[:100]]
+            raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)[:2000]]
         else:
             raw_inputs = [np.load(os.path.join(dataset_path, f))["arr_0"] for f in os.listdir(dataset_path)]
 
         self.inputs = self.preprocess(raw_inputs)
 
     def preprocess(self, raw_inputs):
-        # Remove silence 
         preprocessed_inputs = []
-        for multitrack in raw_inputs:
+        # Trim notes 
+        def get_song_extension(multi_piano_roll):
+            song_ext = 0
+            song_min_note = 128
+            song_max_note = 0
+            for instrument in multi_piano_roll:
+                notes_in_track_idx = np.argwhere(instrument != 0)[:, 0]
+                _min_note = np.min(notes_in_track_idx)
+                if(_min_note < song_min_note):
+                    song_min_note = _min_note
+                _max_note = np.max(notes_in_track_idx)
+                if(_max_note > song_max_note):
+                    song_max_note = _max_note
+                extension = _max_note - _min_note
+                if(extension > song_ext):
+                    song_ext = extension
+            
+            return song_min_note, song_max_note
+
+        for i in tqdm(range(len(raw_inputs)), desc="Trimming notes"):
+            lowest_note, highest_note = get_song_extension(raw_inputs[i])
+            raw_inputs[i] = raw_inputs[i][:, lowest_note:highest_note+1, :]
+
+
+        # Remove silence 
+        for multitrack in tqdm(raw_inputs, desc="Trimming time"):
             initial_silence = multitrack.shape[-1]
             ending_silence = 0
             for track in multitrack:
@@ -43,7 +68,7 @@ class PRollDataset(IterableDataset):
                     ending_silence = track_ending_silence
 
             # (instruments, notes, time)
-            multitrack_without_silences = torch.FloatTensor(multitrack[:, :, initial_silence : ending_silence]).to(self.device)
+            multitrack_without_silences = torch.FloatTensor(multitrack[:, :, initial_silence : ending_silence])
             # (time, instruments * notes)
             multitrack_without_silences = multitrack_without_silences.view((-1, multitrack_without_silences.shape[-1])).transpose(0,1)
 
@@ -51,10 +76,10 @@ class PRollDataset(IterableDataset):
             multitrack_without_silences = torch.abs(multitrack_without_silences / 127.0)
 
 
-            preprocessed_inputs.append(multitrack_without_silences)
+            preprocessed_inputs.append(multitrack_without_silences.to(self.device))
 
+        
         return preprocessed_inputs
-        # TODO: togli le ottave di troppo
 
     # Remember that with the noise some values are negative
     def __iter__(self):
@@ -69,8 +94,9 @@ class PRollDataset(IterableDataset):
 
 
 
-# d = PRollDataset("dataset", test=True)
-# for elem in d:
+d = PRollDataset("dataset", test=True)
+
+
 #     print(elem)
 #     exit()
 
