@@ -25,14 +25,14 @@ class PRollDataset(IterableDataset):
     # Remember that with the noise some values are negative
     def __iter__(self):
         for i in RandomSampler(self.file_paths):
-            track = np.load(os.path.join(self.dataset_path, self.file_paths[i]), allow_pickle=True)["arr_0"]
+            track = np.load(os.path.join(self.dataset_path, self.file_paths[i])).astype(np.float32)
             track = torch.tensor(track).to(self.device)
             track = track + torch.randn_like(track)
             track = torch.abs(track / 127.0) 
             yield track
     
-d = PRollDataset("dataset_preprocessed", test=True)
+d = PRollDataset("dataset_preprocessed_test", test=True)
 
 
 for elem in tqdm(d):
-    print(elem.shape)
+    continue

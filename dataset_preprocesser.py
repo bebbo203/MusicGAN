@@ -66,14 +66,6 @@ def preprocess(track):
         return track_without_silences
 
 
-
-
-
-
-
-
-
-
 DATASET_PATH = "dataset"
 files_path = []
 test_dataset = False
@@ -83,9 +75,14 @@ for root, dirs, files in os.walk(DATASET_PATH, topdown=False):
     if(test_dataset and len(files_path) >= 10):
         break
 
-for i, file_path in tqdm(enumerate(files_path)):
-    track = np.load(file_path)["arr_0"]
-    track = preprocess(track)
-    np.savez_compressed("dataset_preprocessed/track_"+str(i)+".npz", track)
 
-    
+for i, file_path in tqdm(enumerate(files_path), total = len(files_path)):
+    _track = np.load(file_path)["arr_0"]
+    track = preprocess(_track)
+
+    if(track is not None): 
+        track = track.astype(np.uint8)
+        #np.savez_compressed("dataset_preprocessed_test/track_"+str(i)+".npz", track)
+        np.save("dataset_preprocessed_uncompressed/track_"+str(i)+".npy", track)
+        
+

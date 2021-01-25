@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 
 # How many songs have the i-th extension
-l = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 7, 75, 18, 34, 38, 41, 94, 29, 151, 71, 152, 141, 69, 352, 71, 279, 216, 183, 342, 64, 404, 137, 214, 188, 88, 330, 61, 237, 154, 161, 245, 59, 291, 76, 149, 145, 63, 240, 42, 134, 64, 116, 121, 12, 133, 47, 50, 73, 21, 65, 12, 27, 24, 17, 21, 3, 32, 8, 14, 7, 1, 18, 6, 5, 4, 5, 4, 0, 6, 0, 1, 2, 1, 3, 1, 3, 6, 0, 3, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+l = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 3, 0, 0, 4, 0, 3, 1, 2, 2, 4, 8, 16, 11, 20, 20, 53, 14, 89, 33, 65, 112, 25, 189, 73, 159, 216, 116, 386, 58, 335, 176, 203, 353, 88, 449, 172, 199, 295, 126, 420, 105, 287, 193, 187, 295, 54, 369, 85, 176, 104, 48, 131, 13, 47, 28, 19, 27, 7, 27, 0, 22, 5, 2, 11, 1, 7, 3, 4, 7, 1, 2, 0, 0, 0, 3, 5, 7, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 m = 0
 
 for i in range(len(l)):
@@ -30,19 +30,24 @@ exit()
 
 l = [0] * 128
 max_extension = 0
-min_note = 500
-max_note = 0
+
 for i in tqdm(range(6789)):
     multi_piano_roll = np.load("dataset/track_"+str(i)+".npz")["arr_0"]
     song_ext = 0
+    min_note = 500
+    max_note = 0
     for track in multi_piano_roll:
         argw = np.argwhere(track != 0)[:, 0]
         _min_note = np.min(argw)
         _max_note = np.max(argw)
-        extension = _max_note - _min_note
-        if(extension > song_ext):
-            song_ext = extension
-    l[song_ext] += 1
+
+        if(_min_note < min_note):
+            min_note = _min_note
+        if(_max_note > max_note):
+            max_note = _max_note
+
+    extension = max_note - min_note
+    l[extension] += 1
         
             
 print(l)
