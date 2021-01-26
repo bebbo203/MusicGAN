@@ -8,7 +8,8 @@ from tqdm import tqdm
 
 
 for i, f in enumerate(os.listdir("dataset_preprocessed")):
-    os.rename(os.path.join("./dataset_preprocessed", f), os.path.join("./dataset_preprocessed", f"track_{i}.npz"))
+   l = np.load(os.path.join("./dataset_preprocessed", f))
+   print(l.shape)
 
 exit()
 

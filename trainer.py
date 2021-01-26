@@ -21,8 +21,8 @@ def padder(batch):
             max_dim = elem.shape[0]
     
     for i in range(len(batch)):
-        #batch[i] = F.pad(batch[i], pad=(0, 0, 0, max_dim - batch[i].shape[0]))
-        batch[i] = batch[i][:500, :]
+        batch[i] = F.pad(batch[i], pad=(0, 0, 0, max_dim - batch[i].shape[0]))
+        #batch[i] = batch[i][:500, :]
 
     return torch.stack(batch, dim=0)
 
@@ -40,6 +40,7 @@ def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d):
         # discriminator
         opt_d.zero_grad()
         
+
         d_real = d(batch)
         
         noise = torch.randn((batch.shape[0], batch.shape[1], NOISE_SIZE)).to(DEVICE)
@@ -70,12 +71,13 @@ def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d):
 
 
 # params
-BATCH_SIZE = 5
+BATCH_SIZE = 32
 NOISE_SIZE = 100
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+TONES_NUMBER = 68 + 1
 torch.manual_seed(0)
 
-dataset = PRollDataset("dataset", device="cuda", test=True)
+dataset = PRollDataset("dataset_preprocessed", device="cuda", test=True)
 
 train_length = int(len(dataset) * 0.75)
 test_length = int(len(dataset) * 0.10)
@@ -86,14 +88,14 @@ train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, collate_fn=padde
 dev_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
-d = D(128*4).to(DEVICE)
-g = G(NOISE_SIZE, 128*4).to(DEVICE)
+d = D(TONES_NUMBER*4).to(DEVICE)
+g = G(NOISE_SIZE, TONES_NUMBER*4).to(DEVICE)
 optimizer_d = optim.Adam(params=d.parameters())
 optimizer_g = optim.Adam(params=g.parameters())
 
 
 writer = SummaryWriter()
-EPOCHS = 5
+EPOCHS = 1000
 CHECKPOINT_PATH = "checkpoints/checkpoint_"
 
 for epoch in range(EPOCHS):

@@ -81,8 +81,10 @@ for i, file_path in tqdm(enumerate(files_path), total = len(files_path)):
     track = preprocess(_track)
 
     if(track is not None): 
+        if(i > 100):
+            break
         track = track.astype(np.uint8)
         #np.savez_compressed("dataset_preprocessed_test/track_"+str(i)+".npz", track)
-        np.save("dataset_preprocessed_uncompressed/track_"+str(i)+".npy", track)
+        np.save("dataset_preprocessed/track_"+str(i)+".npy", track)
         
 
