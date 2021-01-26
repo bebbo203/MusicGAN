@@ -69,7 +69,8 @@ for track in p.tracks:
 multi_piano_roll = np.stack(i)
 
 multi_piano_roll = np.load("dataset/track_341.npz")["arr_0"]
-midi = piano_roll_to_pretty_midi(multi_piano_roll)
+multi_piano_roll = multi_piano_roll[:, :, 700:1200]
+midi = piano_roll_to_pretty_midi(multi_piano_roll, sf=50)
 midi.write("prova.mid")
 """
 

@@ -75,16 +75,13 @@ for root, dirs, files in os.walk(DATASET_PATH, topdown=False):
     if(test_dataset and len(files_path) >= 10):
         break
 
-
-for i, file_path in tqdm(enumerate(files_path), total = len(files_path)):
+i = 0
+for file_path in tqdm(files_path):
     _track = np.load(file_path)["arr_0"]
     track = preprocess(_track)
 
     if(track is not None): 
-        if(i > 100):
-            break
         track = track.astype(np.uint8)
-        #np.savez_compressed("dataset_preprocessed_test/track_"+str(i)+".npz", track)
-        np.save("dataset_preprocessed/track_"+str(i)+".npy", track)
-        
-
+        track = track[:1000, :]
+        np.save("dataset_preprocessed_reduced/track_"+str(i)+".npy", track)
+        i += 1

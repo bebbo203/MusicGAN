@@ -1,6 +1,4 @@
-from numpy.core.numeric import outer
-from torch.serialization import load
-from torch.utils.data import dataloader, dataset
+from torch.utils.data import dataset
 from generator import G
 from discriminator import D
 from losses import l_g, l_d
@@ -12,6 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch import optim
 from tqdm.auto import tqdm
 import numpy as np
+import os
 
 
 def padder(batch):
@@ -27,7 +26,7 @@ def padder(batch):
     return torch.stack(batch, dim=0)
 
 
-def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d):
+def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d, epoch_n):
     
     g.train()
     d.train()
@@ -35,16 +34,17 @@ def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d):
     avg_loss_g = 0
     avg_loss_d = 0
     
-    for i, batch in tqdm(enumerate(loader), desc="Training"):
+    for i, batch in tqdm(enumerate(loader), desc="Epoch " + str(epoch_n), total=len(loader)):
 
         # discriminator
         opt_d.zero_grad()
         
-
         d_real = d(batch)
         
         noise = torch.randn((batch.shape[0], batch.shape[1], NOISE_SIZE)).to(DEVICE)
         g_z = g(noise)
+
+
         
         d_fake = d(g_z.detach())
 
@@ -71,35 +71,43 @@ def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d):
 
 
 # params
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 NOISE_SIZE = 100
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 TONES_NUMBER = 68 + 1
 torch.manual_seed(0)
 
-dataset = PRollDataset("dataset_preprocessed", device="cuda", test=True)
+dataset = PRollDataset("dataset_preprocessed_reduced", device="cuda", test=False)
 
-train_length = int(len(dataset) * 0.75)
-test_length = int(len(dataset) * 0.10)
-evaluation_length = len(dataset) - train_length - test_length
-train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(dataset, (train_length, test_length, evaluation_length))
-
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, collate_fn=padder)
-dev_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
-test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=padder)
 
 d = D(TONES_NUMBER*4).to(DEVICE)
 g = G(NOISE_SIZE, TONES_NUMBER*4).to(DEVICE)
 optimizer_d = optim.Adam(params=d.parameters())
 optimizer_g = optim.Adam(params=g.parameters())
 
-
-writer = SummaryWriter()
+writer = SummaryWriter("runs/test")
 EPOCHS = 1000
 CHECKPOINT_PATH = "checkpoints/checkpoint_"
 
+checkpoints = os.listdir("checkpoints")
+last_epoch = 0
+if(len(checkpoints) > 0):
+    last_checkpoint_path = "checkpoints/checkpoint_"+str(len(checkpoints)-1)+".pt"
+    last_checkpoint = torch.load(last_checkpoint_path)
+    g.load_state_dict(last_checkpoint["generator"])
+    d.load_state_dict(last_checkpoint["discriminator"])
+    optimizer_g.load_state_dict(last_checkpoint["optimizer_g"])
+    optimizer_d.load_state_dict(last_checkpoint["optimizer_d"])
+    last_epoch = last_checkpoint["epoch"]
+
+
+    
+
+
 for epoch in range(EPOCHS):
-    avg_loss_d, avg_loss_g = train(g, d, train_loader, l_g, l_d, optimizer_g, optimizer_d)
+    epoch += last_epoch +1
+    avg_loss_d, avg_loss_g = train(g, d, train_loader, l_g, l_d, optimizer_g, optimizer_d, epoch)
     # Tensboard data
     writer.add_scalar("Loss/Discriminator", avg_loss_d, epoch)
     writer.add_scalar("Loss/Generator", avg_loss_g, epoch)

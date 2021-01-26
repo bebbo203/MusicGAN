@@ -7,7 +7,9 @@ from tqdm import tqdm
 class PRollDataset(IterableDataset):
     def __init__(self, dataset_path, device = "cuda", test = False):
         """
-            dataset_path: path to the dataset file [str]
+            dataset_path: path to the dataset file (str)
+            device: torch device (str) ["cuda" | "cpu"]
+            test: boolean value to fetch less data
         """
         super().__init__()
         
@@ -28,7 +30,7 @@ class PRollDataset(IterableDataset):
             track = np.load(os.path.join(self.dataset_path, self.file_paths[i])).astype(np.float32)
             track = torch.tensor(track).to(self.device)
             track = track + torch.randn_like(track)
-            track = torch.abs(track / 127.0) 
+            track = torch.abs(track / 127.0)
             yield track
 
     def __getitem__(self, index):
