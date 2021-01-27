@@ -25,8 +25,9 @@ class D(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(hidden_size2, hidden_size3),
             nn.LeakyReLU(),
-            nn.Linear(hidden_size3, 2),
-            nn.Softmax(dim=1)
+            nn.Linear(hidden_size3, 1),
+            nn.Sigmoid()
+            
         )
 
     # output shape (1, n_time, notes*instruments)

@@ -21,14 +21,16 @@ def multi_track_padder(instruments):
 
 NOISE_SIZE = 100
 # Load a checkpoint
-checkpoint = torch.load("checkpoints/checkpoint_21.pt")
+checkpoint = torch.load("checkpoints/checkpoint_16.pt")
 g = G(100, 69*4)
 g.load_state_dict(checkpoint["generator"])
 
 # Generate a song from normal noise
 noise = torch.randn((1, 500, NOISE_SIZE))
 generated_song = g(noise).detach().numpy()
+generated_song *= 127
 generated_song = np.rint(generated_song).astype(np.uint8)
+
 
 # Pad the instruments to the right length (128)
 instruments = np.array_split(generated_song, 4, axis=2)

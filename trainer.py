@@ -6,6 +6,7 @@ from dataset import PRollDataset
 from torch.utils.data.dataloader import DataLoader
 import torch.nn.functional as F
 import torch
+from torch.nn import BCELoss
 from torch.utils.tensorboard import SummaryWriter
 from torch import optim
 from tqdm.auto import tqdm
@@ -28,45 +29,68 @@ def padder(batch):
 
 def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d, epoch_n):
     
+    # REMEMBER that the discriminator now has 1 output node only
+
     g.train()
     d.train()
     
-    avg_loss_g = 0
-    avg_loss_d = 0
+    avg_err_D = 0
+    avg_err_G = 0
+    avg_D_real = 0
+    avg_D_fake = 0
+    n_batches = 0
     
-    for i, batch in tqdm(enumerate(loader), desc="Epoch " + str(epoch_n), total=len(loader)):
+    for i, batch in tqdm(enumerate(loader), desc="Epoch "+str(epoch_n)+": ", total=len(loader)):
 
-        # discriminator
-        opt_d.zero_grad()
+    
+        b_size = batch.shape[0]
+        song_length = batch.shape[1]
         
-        d_real = d(batch)
         
-        noise = torch.randn((batch.shape[0], batch.shape[1], NOISE_SIZE)).to(DEVICE)
-        g_z = g(noise)
+        # TRAIN D
+        # Train with all real batch
+        d.zero_grad()
+        output = d(batch).view(-1)
+        label = torch.full((b_size, ), 1., dtype=torch.float, device=DEVICE)
+        errD_real = criterion(output, label)
+        errD_real.backward()
+        D_x = output.mean().item()
+        # Train with all fake batch
+        noise = torch.randn(b_size, song_length, NOISE_SIZE, device=DEVICE)
+        fake = g(noise)
+        label.fill_(0.)
+        output = d(fake.detach()).view(-1)
+        errD_fake = criterion(output, label)
+        errD_fake.backward()
+        D_G_z1 = output.mean().item()
+        errD = errD_real + errD_fake
+        if(epoch_n % G_PRETRAIN == 0):
+            optimizer_d.step()
 
+        # TRAIN G
+        g.zero_grad()
+        label.fill_(1.)
+        output = d(fake).view(-1)
+        errG = criterion(output, label)
+        errG.backward()
+        if(epoch_n % G_PRETRAIN != 0):
+            optimizer_g.step()
+
+        avg_err_D += errD
+        avg_err_G += errG
+        avg_D_real += D_x
+        avg_D_fake += D_G_z1
+
+        n_batches = i + 1
 
         
-        d_fake = d(g_z.detach())
+    avg_err_D /= n_batches
+    avg_err_G /= n_batches
+    avg_D_real /= n_batches
+    avg_D_fake /= n_batches
+    
 
-        # Remember: [:,0] is the true probability, [:,1] is (1 - [:,0])
-        loss_d = d_loss_function(d_real[:, 0], d_fake[:, 1])
-        loss_d.backward()
-        opt_d.step()
-
-        avg_loss_d += (loss_d.item() - avg_loss_d) / (i+1)
-        
-        # generator
-        opt_g.zero_grad()
-        opt_d.zero_grad()
-
-        d_fake = d(g_z)
-        loss_g = g_loss_function(d_fake[:, 1])
-        loss_g.backward()
-        opt_g.step()
-
-        avg_loss_g += (loss_g.item() - avg_loss_g) / (i+1)
-
-    return avg_loss_d, avg_loss_g
+    return avg_err_D, avg_err_G, avg_D_real, avg_D_fake
 
 
 
@@ -75,9 +99,12 @@ BATCH_SIZE = 64
 NOISE_SIZE = 100
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 TONES_NUMBER = 68 + 1
+TEST = False
+G_PRETRAIN = 5
 torch.manual_seed(0)
 
-dataset = PRollDataset("dataset_preprocessed_reduced", device="cuda", test=False)
+dataset = PRollDataset("dataset_preprocessed_reduced", device="cuda", test=TEST)
+criterion = BCELoss()
 
 train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=padder)
 
@@ -86,13 +113,13 @@ g = G(NOISE_SIZE, TONES_NUMBER*4).to(DEVICE)
 optimizer_d = optim.Adam(params=d.parameters())
 optimizer_g = optim.Adam(params=g.parameters())
 
-writer = SummaryWriter("runs/test")
+writer = SummaryWriter()
 EPOCHS = 1000
 CHECKPOINT_PATH = "checkpoints/checkpoint_"
 
 checkpoints = os.listdir("checkpoints")
 last_epoch = 0
-if(len(checkpoints) > 0):
+if(not TEST and len(checkpoints) > 0):
     last_checkpoint_path = "checkpoints/checkpoint_"+str(len(checkpoints)-1)+".pt"
     last_checkpoint = torch.load(last_checkpoint_path)
     g.load_state_dict(last_checkpoint["generator"])
@@ -106,19 +133,24 @@ if(len(checkpoints) > 0):
 
 
 for epoch in range(EPOCHS):
-    epoch += last_epoch +1
-    avg_loss_d, avg_loss_g = train(g, d, train_loader, l_g, l_d, optimizer_g, optimizer_d, epoch)
-    # Tensboard data
-    writer.add_scalar("Loss/Discriminator", avg_loss_d, epoch)
-    writer.add_scalar("Loss/Generator", avg_loss_g, epoch)
+    epoch += last_epoch + 1
+    avg_err_D, avg_err_G, avg_D_real, avg_D_fake = train(g, d, train_loader, l_g, l_d, optimizer_g, optimizer_d, epoch)
+    print(f"D_loss: {avg_err_D}, G_loss: {avg_err_G}, D_real: {avg_D_real}, D_fake: {avg_D_fake}")
+
     # Save model
-    torch.save({
-        "epoch": epoch,
-        "generator": g.state_dict(),
-        "discriminator": d.state_dict(),
-        "optimizer_g": optimizer_g.state_dict(),
-        "optimizer_d": optimizer_d.state_dict(),
-    }, CHECKPOINT_PATH + str(epoch) + ".pt")
+    if(not TEST):
+        # Tensboard data
+        writer.add_scalar("Loss/Discriminator", avg_err_D, epoch)
+        writer.add_scalar("Loss/Generator", avg_err_G, epoch)
+        writer.add_scalar("Discriminator/Real", avg_D_real, epoch)
+        writer.add_scalar("Discriminator/Fake", avg_D_fake, epoch)
+        torch.save({
+            "epoch": epoch,
+            "generator": g.state_dict(),
+            "discriminator": d.state_dict(),
+            "optimizer_g": optimizer_g.state_dict(),
+            "optimizer_d": optimizer_d.state_dict(),
+        }, CHECKPOINT_PATH + str(epoch) + ".pt")
 
 
 
