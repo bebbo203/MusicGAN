@@ -9,8 +9,7 @@ class D(nn.Module):
         super().__init__()
         
         hidden_size_lstm = 32
-        hidden_size2 = 32
-        hidden_size3 = 16
+
         
         self.lstm = nn.LSTM(
             input_size = input_size,
@@ -21,13 +20,8 @@ class D(nn.Module):
             bidirectional = True)
 
         self.linear = nn.Sequential(
-            nn.Linear(hidden_size_lstm * 2, hidden_size2),
-            nn.LeakyReLU(),
-            nn.Linear(hidden_size2, hidden_size3),
-            nn.LeakyReLU(),
-            nn.Linear(hidden_size3, 1),
+            nn.Linear(hidden_size_lstm * 2, 1),
             nn.Sigmoid()
-            
         )
 
     # output shape (1, n_time, notes*instruments)

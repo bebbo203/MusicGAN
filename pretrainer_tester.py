@@ -1,9 +1,15 @@
-
-from generator import G
+from numpy.core.numeric import outer
+from torch.serialization import load
+from pretrainer import G_pretrain
 import torch
+from torch.utils.tensorboard import SummaryWriter
+from torch import optim
+from tqdm.auto import tqdm
 import numpy as np
-from PIL import Image
+import os
 from pr_to_midi_converter import piano_roll_to_pretty_midi
+from PIL import Image
+from dataset import PRollDataset
 
 
 def padder(batch):
@@ -28,18 +34,23 @@ def multi_track_padder(instruments):
     return np.stack(ret, axis=0)
 
 
-NOISE_SIZE = 3
+NOISE_SIZE = 1
 # Load a checkpoint
-checkpoint = torch.load("checkpoints/checkpoint_56.pt", map_location="cpu")
-g = G(NOISE_SIZE, 69*4)
+checkpoint = torch.load("pretraining_checkpoints/checkpoint_3.pt")
+dataset = PRollDataset("dataset_preprocessed_reduced", device="cpu")
+
+a_song = dataset[1]
+a_song = torch.unsqueeze(a_song, dim=0)
+
+g = G_pretrain(NOISE_SIZE, 69*4)
 g.load_state_dict(checkpoint["generator"])
+
 
 # Generate a song from normal noise
 noise = torch.randn((1, 1000, NOISE_SIZE))
-generated_song = g(noise).detach().numpy()
+generated_song = g(a_song).detach().numpy()
 generated_song *= 127
 generated_song = np.rint(generated_song).astype(np.uint8)
-
 
 # Pad the instruments to the right length (128)
 instruments = np.array_split(generated_song, 4, axis=2)
@@ -50,5 +61,6 @@ midi.write("tester.mid")
 # Generate an image for the pianoroll
 img = Image.fromarray(generated_song[0], "L")
 img.save("tester.png")
+
 
 

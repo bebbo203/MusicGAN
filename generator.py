@@ -14,15 +14,17 @@ class G(nn.Module):
         self.lstm = nn.LSTM(
             input_size = noise_size,
             hidden_size = hidden_size_lstm,
-            num_layers = 4,
+            num_layers = 2,
             batch_first = True,
-            dropout = 0.2,
-            bidirectional = False)
+            dropout = 0.4,
+            bidirectional = True)
 
         self.linear = nn.Sequential(
-            nn.Linear(hidden_size_lstm, hidden_size2),
+            nn.Linear(hidden_size_lstm*2, hidden_size2),
+            nn.Dropout(0.3),
             nn.LeakyReLU(),
             nn.Linear(hidden_size2, hidden_size3),
+            nn.Dropout(0.3),
             nn.LeakyReLU(),
             nn.Linear(hidden_size3, output_size),
             nn.Sigmoid()

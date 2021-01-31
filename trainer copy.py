@@ -62,7 +62,7 @@ def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d, epoch_n)
         loss_g.backward()
         opt_g.step()
 
-        avg_loss_g += (loss_g.item() - avg_loss_g) / (i+1)
+       avg_loss_g += (loss_g.item() - avg_loss_g) / (i+1)
 
     return avg_loss_d, avg_loss_g
 

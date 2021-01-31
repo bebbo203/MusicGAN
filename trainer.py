@@ -27,7 +27,7 @@ def padder(batch):
     return torch.stack(batch, dim=0)
 
 
-def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d, epoch_n):
+def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
     
     # REMEMBER that the discriminator now has 1 output node only
 
@@ -45,36 +45,47 @@ def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d, epoch_n)
     
         b_size = batch.shape[0]
         song_length = batch.shape[1]
+       
         
         
         # TRAIN D
         # Train with all real batch
+        
         d.zero_grad()
         output = d(batch).view(-1)
-        label = torch.full((b_size, ), 1., dtype=torch.float, device=DEVICE)
+        #label = torch.full((b_size, ), 1., dtype=torch.float, device=DEVICE)
+        label = torch.FloatTensor(b_size).uniform_(0.8, 1.2).to(DEVICE)
+
         errD_real = criterion(output, label)
         errD_real.backward()
         D_x = output.mean().item()
+        
         # Train with all fake batch
+        
         noise = torch.randn(b_size, song_length, NOISE_SIZE, device=DEVICE)
         fake = g(noise)
-        label.fill_(0.)
+        #label.fill_(0.)
+        label = torch.FloatTensor(b_size).uniform_(-0.2, 0.2).to(DEVICE)
         output = d(fake.detach()).view(-1)
         errD_fake = criterion(output, label)
-        errD_fake.backward()
         D_G_z1 = output.mean().item()
         errD = errD_real + errD_fake
-        if(epoch_n % G_PRETRAIN == 0):
-            optimizer_d.step()
+        errD_fake.backward()
+        if(ex_d_loss > ex_g_loss * 0.7):
+            opt_d.step()
+        
+        
 
         # TRAIN G
+        
         g.zero_grad()
-        label.fill_(1.)
+        #label.fill_(1.)
+        label = torch.FloatTensor(b_size).uniform_(0.8, 1.2).to(DEVICE)
         output = d(fake).view(-1)
         errG = criterion(output, label)
         errG.backward()
-        if(epoch_n % G_PRETRAIN != 0):
-            optimizer_g.step()
+        if(ex_g_loss > ex_d_loss * 0.7):
+            opt_g.step()
 
         avg_err_D += errD
         avg_err_G += errG
@@ -83,6 +94,7 @@ def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d, epoch_n)
 
         n_batches = i + 1
 
+        
         
     avg_err_D /= n_batches
     avg_err_G /= n_batches
@@ -96,11 +108,17 @@ def train(g, d, loader, g_loss_function, d_loss_function, opt_g, opt_d, epoch_n)
 
 # params
 BATCH_SIZE = 64
-NOISE_SIZE = 100
+NOISE_SIZE = 3
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 TONES_NUMBER = 68 + 1
 TEST = False
-G_PRETRAIN = 5
+G_PRETRAIN = 3
+LOAD_PRETRAINED_GENERATOR = False
+EPOCHS = 1000
+CHECKPOINT_PATH = "checkpoints_test/checkpoint_"
+PRETRAINED_CHECKPOINT_PATH = "pretraining_checkpoints/checkpoint_"
+WRITER_PATH = ""
+
 torch.manual_seed(0)
 
 dataset = PRollDataset("dataset_preprocessed_reduced", device="cuda", test=TEST)
@@ -113,14 +131,24 @@ g = G(NOISE_SIZE, TONES_NUMBER*4).to(DEVICE)
 optimizer_d = optim.Adam(params=d.parameters())
 optimizer_g = optim.Adam(params=g.parameters())
 
-writer = SummaryWriter()
-EPOCHS = 1000
-CHECKPOINT_PATH = "checkpoints/checkpoint_"
+if(WRITER_PATH == ""):
+    writer = SummaryWriter()
+else:
+    writer = SummaryWriter(WRITER_PATH)
 
-checkpoints = os.listdir("checkpoints")
+
+checkpoints = os.listdir(CHECKPOINT_PATH.split("/")[0])
+pretrained_checkpoints = os.listdir(PRETRAINED_CHECKPOINT_PATH.split("/")[0])
+
+if(LOAD_PRETRAINED_GENERATOR and len(pretrained_checkpoints) > 0 and len(checkpoints) == 0):
+    last_checkpoint_path = PRETRAINED_CHECKPOINT_PATH+str(len(pretrained_checkpoints))+".pt"
+    last_checkpoint = torch.load(last_checkpoint_path)
+    g.load_state_dict(last_checkpoint["generator"])
+
+
 last_epoch = 0
 if(not TEST and len(checkpoints) > 0):
-    last_checkpoint_path = "checkpoints/checkpoint_"+str(len(checkpoints)-1)+".pt"
+    last_checkpoint_path = CHECKPOINT_PATH+str(len(checkpoints))+".pt"
     last_checkpoint = torch.load(last_checkpoint_path)
     g.load_state_dict(last_checkpoint["generator"])
     d.load_state_dict(last_checkpoint["discriminator"])
@@ -129,12 +157,13 @@ if(not TEST and len(checkpoints) > 0):
     last_epoch = last_checkpoint["epoch"]
 
 
-    
 
 
+avg_err_D = 1000
+avg_err_G = 1000
 for epoch in range(EPOCHS):
     epoch += last_epoch + 1
-    avg_err_D, avg_err_G, avg_D_real, avg_D_fake = train(g, d, train_loader, l_g, l_d, optimizer_g, optimizer_d, epoch)
+    avg_err_D, avg_err_G, avg_D_real, avg_D_fake = train(g, d, train_loader, avg_err_G, avg_err_D, optimizer_g, optimizer_d, epoch)
     print(f"D_loss: {avg_err_D}, G_loss: {avg_err_G}, D_real: {avg_D_real}, D_fake: {avg_D_fake}")
 
     # Save model
