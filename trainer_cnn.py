@@ -1,6 +1,6 @@
 from torch.utils.data import dataset
-from generator import G
-from discriminator import D
+from cnn_generator import G
+from cnn_discriminator import D
 from dataset import PRollDataset
 from torch.utils.data.dataloader import DataLoader
 import torch.nn.functional as F
@@ -11,6 +11,7 @@ from torch import optim
 from tqdm.auto import tqdm
 import numpy as np
 import os
+from torch import nn
 
 
 def padder(batch):
@@ -24,6 +25,14 @@ def padder(batch):
         #batch[i] = batch[i][:500, :]
 
     return torch.stack(batch, dim=0)
+
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
 
 def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
@@ -43,9 +52,8 @@ def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
 
     
         b_size = batch.shape[0]
-        song_length = batch.shape[1]
        
-
+        batch = torch.unsqueeze(batch, dim=1)
         
         # TRAIN D
         # Train with all real batch
@@ -53,7 +61,7 @@ def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
         d.zero_grad()
         output = d(batch).view(-1)
         #label = torch.full((b_size, ), 1., dtype=torch.float, device=DEVICE)
-        label = torch.FloatTensor(b_size).uniform_(0.8, 1.3).to(DEVICE)
+        label = torch.FloatTensor(b_size).uniform_(0.8, 1.0).to(DEVICE)
 
         errD_real = criterion(output, label)
         errD_real.backward()
@@ -61,30 +69,27 @@ def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
         
         # Train with all fake batch
         
-        noise = torch.randn(b_size, song_length, NOISE_SIZE, device=DEVICE)
+        noise = torch.randn(b_size, NOISE_SIZE, 1, 1, device=DEVICE)
         fake = g(noise)
         #label.fill_(0.)
-        label = torch.FloatTensor(b_size).uniform_(0, 0.3).to(DEVICE)
+        label = torch.FloatTensor(b_size).uniform_(0, 0.2).to(DEVICE)
         output = d(fake.detach()).view(-1)
         errD_fake = criterion(output, label)
         D_G_z1 = output.mean().item()
         errD = errD_real + errD_fake
         errD_fake.backward()
-        if(ex_d_loss > ex_g_loss * 0.7):
-            opt_d.step()
         
+        opt_d.step()
         
-
         # TRAIN G
         
         g.zero_grad()
         #label.fill_(1.)
-        label = torch.FloatTensor(b_size).uniform_(0.9, 1.1).to(DEVICE)
+        label = torch.FloatTensor(b_size).uniform_(0.9, 1.0).to(DEVICE)
         output = d(fake).view(-1)
         errG = criterion(output, label)
         errG.backward()
-        if(ex_g_loss > ex_d_loss * 0.7):
-            opt_g.step()
+        opt_g.step()
 
         avg_err_D += errD
         avg_err_G += errG
@@ -127,8 +132,10 @@ train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=padder)
 
 d = D(TONES_NUMBER*4).to(DEVICE)
 g = G(NOISE_SIZE, TONES_NUMBER*4).to(DEVICE)
-optimizer_d = optim.SGD(params=d.parameters(), lr=0.01)
-optimizer_g = optim.Adam(params=g.parameters())
+d.apply(weights_init)
+g.apply(weights_init)
+optimizer_d = optim.Adam(d.parameters(), betas=(0.5, 0.999))
+optimizer_g = optim.Adam(g.parameters(), betas=(0.5, 0.999))
 
 if(WRITER_PATH == ""):
     writer = SummaryWriter()
@@ -181,13 +188,5 @@ for epoch in range(EPOCHS):
             "optimizer_g": optimizer_g.state_dict(),
             "optimizer_d": optimizer_d.state_dict(),
         }, CHECKPOINT_PATH + str(epoch) + ".pt")
-
-
-
-g.eval()
-with torch.no_grad():
-    output = g(torch.randn((1, 500, NOISE_SIZE)).to(DEVICE)).cpu().numpy()
-    np.save("output_test.npy", output)
-
 
 

@@ -20,7 +20,7 @@ class D(nn.Module):
             bidirectional = True)
 
         self.linear = nn.Sequential(
-            nn.Linear(hidden_size_lstm * 2, 1),
+            nn.Linear(hidden_size_lstm * 2, 1), 
             nn.Sigmoid()
         )
 

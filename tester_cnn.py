@@ -1,6 +1,6 @@
 
 from operator import mul
-from generator import G
+from cnn_generator import G
 import torch
 import numpy as np
 from PIL import Image
@@ -21,13 +21,13 @@ def multi_track_padder(instruments):
 
 NOISE_SIZE = 3
 # Load a checkpoint
-checkpoint = torch.load("checkpoints/checkpoint_133.pt", map_location="cpu")
+checkpoint = torch.load("checkpoints/checkpoint_9.pt", map_location="cpu")
 g = G(NOISE_SIZE, 69*4)
 g.load_state_dict(checkpoint["generator"])
 
 # Generate a song from normal noise
-noise = torch.randn((1, 1000, NOISE_SIZE))
-generated_song = g(noise).detach().numpy()
+noise = torch.randn((1, NOISE_SIZE, 1, 1))
+generated_song = g(noise).detach().numpy()[0]
 generated_song *= 127
 generated_song = np.rint(generated_song).astype(np.uint8)
 
