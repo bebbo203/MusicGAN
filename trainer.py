@@ -53,7 +53,7 @@ def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
         d.zero_grad()
         output = d(batch).view(-1)
         #label = torch.full((b_size, ), 1., dtype=torch.float, device=DEVICE)
-        label = torch.FloatTensor(b_size).uniform_(0.8, 1.3).to(DEVICE)
+        label = torch.FloatTensor(b_size).uniform_(0.8, 1.0).to(DEVICE)
 
         errD_real = criterion(output, label)
         errD_real.backward()
@@ -70,8 +70,7 @@ def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
         D_G_z1 = output.mean().item()
         errD = errD_real + errD_fake
         errD_fake.backward()
-        if(ex_d_loss > ex_g_loss * 0.7):
-            opt_d.step()
+        opt_d.step()
         
         
 
@@ -79,12 +78,11 @@ def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
         
         g.zero_grad()
         #label.fill_(1.)
-        label = torch.FloatTensor(b_size).uniform_(0.9, 1.1).to(DEVICE)
+        label = torch.FloatTensor(b_size).uniform_(0.9, 1.0).to(DEVICE)
         output = d(fake).view(-1)
         errG = criterion(output, label)
         errG.backward()
-        if(ex_g_loss > ex_d_loss * 0.7):
-            opt_g.step()
+        opt_g.step()
 
         avg_err_D += errD
         avg_err_G += errG
@@ -127,7 +125,7 @@ train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=padder)
 
 d = D(TONES_NUMBER*4).to(DEVICE)
 g = G(NOISE_SIZE, TONES_NUMBER*4).to(DEVICE)
-optimizer_d = optim.SGD(params=d.parameters(), lr=0.01)
+optimizer_d = optim.Adam(params=d.parameters())
 optimizer_g = optim.Adam(params=g.parameters())
 
 if(WRITER_PATH == ""):

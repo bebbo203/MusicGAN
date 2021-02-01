@@ -8,7 +8,7 @@ class G(nn.Module):
         super().__init__()
         
         hidden_size_lstm = 64
-        hidden_size2 = 64
+        hidden_size2 = 128
         hidden_size3 = 128
         
 
