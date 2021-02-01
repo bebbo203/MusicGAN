@@ -7,7 +7,7 @@ class D(nn.Module):
         super().__init__()
         
         nc = 1
-        ndf = 32
+        ndf = 64
 
 
         self.main = nn.Sequential(

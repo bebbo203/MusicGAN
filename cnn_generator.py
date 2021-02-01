@@ -7,7 +7,7 @@ class G(nn.Module):
     def __init__(self, noise_size, output_size):
         super().__init__()
         
-        ngf = 16
+        ngf = 64
         final_channels_number = 1  # TODO: are 4 channels, one per instrument, better than one big channel?
 
 

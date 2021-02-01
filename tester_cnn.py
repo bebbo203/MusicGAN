@@ -21,7 +21,7 @@ def multi_track_padder(instruments):
 
 NOISE_SIZE = 3
 # Load a checkpoint
-checkpoint = torch.load("checkpoints/checkpoint_9.pt", map_location="cpu")
+checkpoint = torch.load("checkpoints/checkpoint_89.pt", map_location="cpu")
 g = G(NOISE_SIZE, 69*4)
 g.load_state_dict(checkpoint["generator"])
 

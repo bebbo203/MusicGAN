@@ -85,7 +85,7 @@ def train(g, d, loader, ex_g_loss, ex_d_loss, opt_g, opt_d, epoch_n):
         
         g.zero_grad()
         #label.fill_(1.)
-        label = torch.FloatTensor(b_size).uniform_(0.9, 1.0).to(DEVICE)
+        label = torch.FloatTensor(b_size).uniform_(0.95, 1.0).to(DEVICE)
         output = d(fake).view(-1)
         errG = criterion(output, label)
         errG.backward()
