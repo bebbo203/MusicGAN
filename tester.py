@@ -1,63 +1,98 @@
 
-from operator import mul
-from generator import G
 import torch
+from generator import G
+from configuration import *
 import numpy as np
-from PIL import Image
-from pr_to_midi_converter import piano_roll_to_pretty_midi
+from pypianoroll import Multitrack, StandardTrack
+import matplotlib.pyplot as plt
+import sys 
+
+import os
 
 
+def generated_song_to_img(generated_song, write_midi = False):
+    tempo_array = np.full((4 * 4 * MEASURE_LENGTH, 1), TEMPO)
+    samples = generated_song.transpose(1, 0, 2, 3).reshape(N_TRACKS, -1, N_PITCHES)
+    tracks = []
+    for idx, (program, is_drum, track_name) in enumerate(
+        zip(PROGRAMS, IS_DRUMS, TRACK_NAMES)
+    ):
+        pianoroll = np.pad(
+            samples[idx] > 0.5,
+            ((0, 0), (LOWEST_PITCH, 128 - LOWEST_PITCH - N_PITCHES))
+        )
+        tracks.append(
+            StandardTrack(
+                name=track_name,
+                program=program,
+                is_drum=is_drum,
+                pianoroll=pianoroll
+            )
+        )
+    m = Multitrack(
+        tracks=tracks,
+        tempo=tempo_array,
+        resolution=BEAT_RESOLUTION
+    )
+    m.binarize()
+    if(write_midi):
+        m.write("tester.mid")
 
+    axs = m.plot()
+    plt.gcf().set_size_inches((16, 8))
+    for ax in axs:
+        for x in range(
+            MEASURE_LENGTH,
+            4 * MEASURE_LENGTH * N_MEASURES_FOR_SAMPLE,
+            MEASURE_LENGTH
+        ):
+            if x % (MEASURE_LENGTH * 4) == 0:
+                ax.axvline(x - 0.5, color='k')
+            else:
+                ax.axvline(x - 0.5, color='k', linestyle='-', linewidth=1)
 
+    if(not write_midi):
+        canvas = plt.gca().figure.canvas
+        canvas.draw()
+        data = np.frombuffer(canvas.tostring_rgb(), dtype=np.uint8)
+        image = data.reshape(canvas.get_width_height()[::-1] + (3,))
+        image = np.moveaxis(image, 2, 0)
+        
+        
+        return image
 
-def multi_track_padder(instruments):
-    ret = []
-    for instrument in instruments:
-        pad_array = np.zeros((1, instrument.shape[1], 128))
-        pad_array[:, :, 29: 29 + instrument.shape[2]] += instrument
-        ret.append(pad_array[0].T)
-    return np.stack(ret, axis=0)
-
-
-NOISE_SIZE = 3
-# Load a checkpoint
-checkpoint = torch.load("checkpoints/checkpoint_133.pt", map_location="cpu")
-g = G(NOISE_SIZE, 69*4)
-g.load_state_dict(checkpoint["generator"])
-
-# Generate a song from normal noise
-noise = torch.randn((1, 1000, NOISE_SIZE))
-generated_song = g(noise).detach().numpy()
-generated_song *= 127
-generated_song = np.rint(generated_song).astype(np.uint8)
-
-# Pad the instruments to the right length (128)
-instruments = np.array_split(generated_song, 4, axis=2)
-multi_track = multi_track_padder(instruments)
-midi = piano_roll_to_pretty_midi(multi_track, sf=100)
-midi.write("tester.mid")
-
-# Create a colored background for the instruments
-black_background = np.zeros((3, 1000, 276)).astype(np.uint8)
-black_background[0, :, :69] = 100
-black_background[1, :, 69:138] = 100
-black_background[2, :, 138:207] = 100
-black_background[1, :, 207:376] = 100
-black_background[2, :, 207:276] = 100
-black_background = np.rollaxis(black_background, 0, 3)
-
-
-
-
-
-for i,elem in enumerate(instruments):
-    elem = elem[0]
-    black_background[:, 69*i:69*(i+1) , 0] += elem.astype(np.uint8)
-    black_background[:, 69*i:69*(i+1) , 1] += elem.astype(np.uint8)
-    black_background[:, 69*i:69*(i+1) , 2] += elem.astype(np.uint8)
-
-
+    else:
+        plt.show()
     
-img = Image.fromarray(black_background)
-img.save("tester.png")
+
+
+
+if(__name__ == "__main__"):
+    checkpoints_path = CHECKPOINT_PATH.split("/")[:-1]
+    if(len(checkpoints_path) > 1):
+        checkpoints_path = os.path.join(*checkpoints_path)
+    else:
+        checkpoints_path = checkpoints_path[0]
+
+    checkpoints = os.listdir(checkpoints_path) 
+
+    checkpoint_idx = len(checkpoints)
+
+    if(len(sys.argv) > 1):
+        checkpoint_idx = sys.argv[1]
+
+    print(checkpoint_idx)
+    checkpoint = torch.load(checkpoints_path + "/checkpoint_" + str(checkpoint_idx) + ".pt", map_location="cpu")
+
+
+    g = G()
+    g.load_state_dict(checkpoint["generator"])
+    g.eval()
+    noise = torch.randn(4, LATENT_DIM)
+
+
+    samples = g(noise).cpu().detach().numpy()
+    generated_song_to_img(samples, write_midi=False)
+
+
 

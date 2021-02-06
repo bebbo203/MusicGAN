@@ -10,7 +10,7 @@ import pypianoroll
 
 def piano_roll_to_pretty_midi(multi_piano_roll, sf=50):
     instruments = []
-    program_nums = [0, 48, 25, 33]
+    program_nums = [0, 48, 25, 33, 1]
     pm = pretty_midi.PrettyMIDI()
     
     for piano_roll in multi_piano_roll:
