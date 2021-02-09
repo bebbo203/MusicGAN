@@ -81,6 +81,7 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
         opt_d.step()
 
         # TRAIN G
+        
         g.zero_grad()
         D_G_z = d(G_z)
        
@@ -167,12 +168,11 @@ for epoch in range(EPOCHS):
             "optimizer_d": optimizer_d.state_dict(),
         }, CHECKPOINT_PATH + str(epoch) + ".pt")
 
-        
-        with torch.no_grad():
-            g.eval()
-            generated_song = g(noise).cpu().numpy()
-            img = generated_song_to_img(generated_song)
-            writer.add_image("Generated Song", img, epoch)
-            img = Image.fromarray(np.rollaxis(img, 0, 3))
-            img.save(IMG_SAVE_PATH + "/epoch_" + str(epoch) + ".png")
-
+        if(epoch % LOG_INTERVAL == 0):
+            with torch.no_grad():
+                g.eval()
+                generated_song = g(noise).cpu().numpy()
+                img = generated_song_to_img(generated_song)
+                writer.add_image("Generated Song", img, epoch)
+                img = Image.fromarray(np.rollaxis(img, 0, 3))
+                img.save(IMG_SAVE_PATH + "/epoch_" + str(epoch) + ".png")

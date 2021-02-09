@@ -4,8 +4,6 @@ from configuration import *
 
 
 
-
-
 class DiscriminatorBlock(nn.Module):
     def __init__(self, in_dim, out_dim, kernel, stride, feature_shape):
         super().__init__()
@@ -39,9 +37,10 @@ class D(nn.Module):
         self.dense = nn.Sequential(
             nn.Linear(256, 64),
             nn.LeakyReLU(),
-            nn.Linear(64, 1)   
+            nn.Linear(64, 1)
         )
         
+
 
     def forward(self, x):
         batch_size = x.shape[0]

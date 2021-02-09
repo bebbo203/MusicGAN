@@ -58,7 +58,6 @@ def generated_song_to_img(generated_song, write_midi = False):
         image = data.reshape(canvas.get_width_height()[::-1] + (3,))
         image = np.moveaxis(image, 2, 0)
         
-        
         return image
 
     else:
@@ -68,11 +67,14 @@ def generated_song_to_img(generated_song, write_midi = False):
 
 
 if(__name__ == "__main__"):
+
     checkpoints_path = CHECKPOINT_PATH.split("/")[:-1]
     if(len(checkpoints_path) > 1):
         checkpoints_path = os.path.join(*checkpoints_path)
     else:
         checkpoints_path = checkpoints_path[0]
+
+    
 
     checkpoints = os.listdir(checkpoints_path) 
 
@@ -92,7 +94,6 @@ if(__name__ == "__main__"):
 
 
     samples = g(noise).cpu().detach().numpy()
-    generated_song_to_img(samples, write_midi=False)
-
+    generated_song_to_img(samples, write_midi=True)
 
 
