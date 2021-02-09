@@ -38,17 +38,18 @@ class PRollDataset(IterableDataset):
         music_folder = os.path.join(self.dataset_path, "lpd_5", "lpd_5_cleansed")
 
         # Used to load ALL the dataset
-        for (path, name, file) in os.walk(music_folder):
-            if(len(file) > 0):
-                list_of_ids.append(path.split("/")[-1])
+        # for (path, name, file) in os.walk(music_folder):
+        #     if(len(file) > 0):
+        #         list_of_ids.append(path.split("/")[-1])
 
-        # Use this if you want to load only specific tracks
-        # list_of_files = os.listdir(os.path.join(self.dataset_path, "amg"))
+        #Use this if you want to load only specific tracks
+        list_of_files = os.listdir(os.path.join(self.dataset_path, "lastfm"))
         
-        # for file in list_of_files:
-        #     with open(os.path.join(self.dataset_path, "amg", file), 'r') as f:
-        #         for id in f:
-        #             list_of_ids.append(id.strip())
+        for file in list_of_files:
+            if(file in ["id_list_pop.txt"]):
+                with open(os.path.join(self.dataset_path, "lastfm", file), 'r') as f:
+                    for id in f:
+                        list_of_ids.append(id.strip())
 
 
 
