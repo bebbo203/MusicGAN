@@ -82,15 +82,19 @@ class PRollDataset(IterableDataset):
 
         n_total_measures = multitrack.get_max_length() // self.measure_length
         available_measures = n_total_measures - self.n_measures_for_sample
-        target_n_samples = min(n_total_measures // self.n_measures_for_sample, self.n_samples_per_song)
+        target_n_samples = min(n_total_measures // self.n_measures_for_sample, self.n_samples_per_song * 2)
 
         data = []
         for idx in np.random.choice(available_measures, target_n_samples, False):
             start = idx * self.measure_length
             end = (idx + self.n_measures_for_sample) * self.measure_length
             # At least one instrument in the sample must have at least 10 notes
-            if((pr[:, start:end].sum(axis=(1, 2)) > 10).any()):
+            #if((pr[:, start:end].sum(axis=(1, 2)) < 1).any()):
+            n_notes = np.count_nonzero(pr[:, start:end])
+            if(n_notes < 500 and n_notes > 10):
                 data.append(pr[:, start:end])
+                if(len(data) == self.n_samples_per_song):
+                    break
 
         #if not data: print(available_measures, target_n_samples) # DEBUG
         return np.stack(data) if data else None
@@ -121,16 +125,11 @@ if(__name__ == "__main__"):
 
     d = PRollDataset("data", test = False)
     print(len(d.multitracks_paths))
-    exit()
-    # RICORDATI STO COMANDO find . -name '*.txt' | xargs wc -l
 
-    counter = 0
     for elem in d:
-        if(counter % 100 == 0):
-            print(counter)
-        counter += elem.shape[0]
+        print(elem.shape)
 
-    print(counter)
+   
     exit()
 
     dl = DataLoader(d, batch_size = 32 // N_SAMPLES_PER_SONG, collate_fn = collate)
