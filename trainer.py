@@ -83,18 +83,16 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
         # TRAIN G
         
         g.zero_grad()
-        D_G_z = d(G_z)
-        loss_G = -torch.mean(D_G_z) # maximize the outputs of fake samples
-        
-        if(epoch % GENERATOR_UPDATE_INTERVAL == 0):
+        if(epoch_n % GENERATOR_UPDATE_INTERVAL == 0):    
+            D_G_z = d(G_z)
+            loss_G = -torch.mean(D_G_z) # maximize the outputs of fake samples
             loss_G.backward()
             opt_g.step()
-
-
-        avg_loss_D += loss_D
-        avg_loss_G += loss_G
-        avg_D_real += torch.mean(D_x)
-        avg_D_fake += torch.mean(D_G_z)
+        else:
+            g.eval()
+            with torch.no_grad():
+                D_G_z = d(G_z)
+                loss_G = -torch.mean(D_G_z)
 
         
         
@@ -114,7 +112,7 @@ torch.manual_seed(0)
 g = G().to(DEVICE)
 d = D().to(DEVICE)
 optimizer_d = torch.optim.RMSprop(params=d.parameters(), lr=0.00005)
-optimizer_g = torch.optim.RMSprop(params=g.parameters(), lr=0.00005))
+optimizer_g = torch.optim.RMSprop(params=g.parameters(), lr=0.00005)
 dataset = PRollDataset("data", device=DEVICE, test=TEST)
 collate = lambda batch: torch.cat([torch.tensor(b, dtype=torch.float32, device=DEVICE) for b in batch])
 train_loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=collate)

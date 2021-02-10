@@ -21,10 +21,10 @@ BATCH_SIZE = 64 // N_SAMPLES_PER_SONG
 EPOCHS = 1000
 LOG_INTERVAL = 10
 GENERATOR_UPDATE_INTERVAL = 5
-TEST = False
+TEST = True
 
 ### CHECKPOINT PATHS ###
-COLAB_TRAINING = True
+COLAB_TRAINING = False
 
 CHECKPOINT_PATH = "checkpoints/checkpoint_" if not COLAB_TRAINING else "../drive/My Drive/MusicGAN/checkpoints/checkpoint_"
 WRITER_PATH = "" if not COLAB_TRAINING else "../drive/My Drive/MusicGAN/runs/long_run"

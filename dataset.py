@@ -10,6 +10,7 @@ from configuration import *
 
 
 
+        
 class PRollDataset(IterableDataset):
     def __init__(self, dataset_path, device="cuda", test = False):
         self.dataset_path = dataset_path
@@ -70,17 +71,11 @@ class PRollDataset(IterableDataset):
 
         return multitracks
 
-    def take_samples_from_multitrack(self, multitrack):
-        # Make the pianoroll of boolean type
-        multitrack.binarize()
-        # Set the resolution of a beat (in this case the min length of a note is 1/4)
-        multitrack.set_resolution(self.beat_resolution)
-        # Get the complete pianoroll (shape: n_tracks x n_timesteps x n_pitches)
-        pr = multitrack.stack() > 0
+    def take_samples_from_multitrack(self, pianoroll):
+       
         # Pick only the center pitches
-        pr = pr[:, :, self.lowest_pitch:self.lowest_pitch + self.n_pitches]
-
-        n_total_measures = multitrack.get_max_length() // self.measure_length
+        pr = pianoroll[:, :, self.lowest_pitch:self.lowest_pitch + self.n_pitches]
+        n_total_measures = pr.shape[1] // self.measure_length
         available_measures = n_total_measures - self.n_measures_for_sample
         target_n_samples = min(n_total_measures // self.n_measures_for_sample, self.n_samples_per_song * 2)
 
@@ -99,13 +94,73 @@ class PRollDataset(IterableDataset):
         #if not data: print(available_measures, target_n_samples) # DEBUG
         return np.stack(data) if data else None
 
+    def multitrack_to_pianoroll(self, multitrack):
+        # Make the pianoroll of boolean type
+        multitrack.binarize()
+        # Set the resolution of a beat (in this case the min length of a note is 1/4)
+        multitrack.set_resolution(self.beat_resolution)
+        # Get the complete pianoroll (shape: n_tracks x n_timesteps x n_pitches)
+        pr = multitrack.stack() > 0
+
+        return pr
+
+
+    def count_notes(self, pianoroll):
+        major_scales = [
+            [0,2,4,5,7,9,11],
+            [0,1,3,5,6,8,10],
+            [1,2,4,6,7,9,11],
+            [0,2,3,5,7,8,10],
+            [1,3,4,6,8,9,11],
+            [0,2,4,5,7,9,10],
+            [1,3,5,6,8,10,11],
+            [0,2,4,6,7,9,11],
+            [0,1,3,5,7,8,10],
+            [1,2,4,6,8,9,11],
+            [0,2,3,5,7,9,10],
+            [1,3,4,6,8,10,11]
+        ]
+        # Discard the drums track
+        pr = pianoroll[1:, :, :]
+        notes = np.argwhere(pr == True)[:, 2]
+        notes = notes % 12
+        # Count the occurences of every note
+        unique, counts = np.unique(notes, return_counts=True)
+        d = dict(zip(unique, counts))
+        # Order the dict by values
+        d = {k: v for k, v in sorted(d.items(), key=lambda item: -item[1])}
+        # Take the 7 most common notes
+        most_common_notes = list(d.keys())[:7]
+        most_common_notes.sort()
+        # Check if the scale is in the list of previous manually computed scaled
+        offset = -1
+        for i in range(len(major_scales)):
+            if(most_common_notes == major_scales[i]):
+                offset = i
+                break
+        # If we have a major (or minor) scale transpose the song
+        if(offset != -1):
+            drums = pianoroll[0, :, :]
+            zeros_line = np.zeros((5, pianoroll.shape[1], offset))
+
+            pianoroll = pianoroll[:, :, offset:]
+            pianoroll = np.concatenate((pianoroll, zeros_line), axis=2)
+            pianoroll[0, :, :] = drums
+
+        return pianoroll if offset != -1 else None
+        
     def __iter__(self):
         for i in RandomSampler(self.multitracks_paths):
-
             multitrack = pypianoroll.load(self.multitracks_paths[i])
-            data = self.take_samples_from_multitrack(multitrack)
+            pianoroll = self.multitrack_to_pianoroll(multitrack)
+            transposed_pianoroll = self.count_notes(pianoroll)
+            if transposed_pianoroll is None:
+                continue
             
-            if data is not None: yield data
+            data = self.take_samples_from_multitrack(pianoroll)
+            
+            if data is not None:
+                yield data
 
     def __getitem__(self, index):
         path = self.multitracks_paths[index]
