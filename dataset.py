@@ -157,7 +157,7 @@ class PRollDataset(IterableDataset):
             if transposed_pianoroll is None:
                 continue
             
-            data = self.take_samples_from_multitrack(pianoroll)
+            data = self.take_samples_from_multitrack(transposed_pianoroll)
             
             if data is not None:
                 yield data
