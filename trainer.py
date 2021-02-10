@@ -84,10 +84,11 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
         
         g.zero_grad()
         D_G_z = d(G_z)
-       
         loss_G = -torch.mean(D_G_z) # maximize the outputs of fake samples
-        loss_G.backward()
-        opt_g.step()
+        
+        if(epoch % GENERATOR_UPDATE_INTERVAL == 0):
+            loss_G.backward()
+            opt_g.step()
 
 
         avg_loss_D += loss_D
@@ -112,8 +113,8 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
 torch.manual_seed(0)
 g = G().to(DEVICE)
 d = D().to(DEVICE)
-optimizer_d = torch.optim.Adam(params=d.parameters(), lr=0.001,  betas=(0.5, 0.9))
-optimizer_g = torch.optim.Adam(params=g.parameters(), lr=0.001,  betas=(0.5, 0.9))
+optimizer_d = torch.optim.RMSprop(params=d.parameters(), lr=0.00005)
+optimizer_g = torch.optim.RMSprop(params=g.parameters(), lr=0.00005))
 dataset = PRollDataset("data", device=DEVICE, test=TEST)
 collate = lambda batch: torch.cat([torch.tensor(b, dtype=torch.float32, device=DEVICE) for b in batch])
 train_loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=collate)
@@ -142,8 +143,6 @@ if(not TEST and len(checkpoints) > 0):
     optimizer_g.load_state_dict(last_checkpoint["optimizer_g"])
     optimizer_d.load_state_dict(last_checkpoint["optimizer_d"])
     last_epoch = last_checkpoint["epoch"]
-
-
 
 
 noise = torch.randn(4, LATENT_DIM).to(DEVICE)
