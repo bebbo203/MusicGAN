@@ -50,20 +50,20 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
     
     for i, batch in tqdm(enumerate(loader), desc="Epoch "+str(epoch_n)+": ", total=(len(loader) // N_SAMPLES_PER_SONG + 1)):
 
-    
         b_size = batch.shape[0]
         z = torch.randn(b_size, LATENT_DIM).to(DEVICE)
        
         # TRAIN D
         # Train with all real batch
         
-        d.zero_grad()
+        opt_d.zero_grad()
         D_x = d(batch)
         
         loss_D_x = -torch.mean(D_x) # maximize the outputs of real samples
         loss_D_x.backward()
         
         # Train with all fake batch
+        g.train()
         G_z = g(z)
         D_G_z = d(G_z.detach())
         
@@ -82,8 +82,8 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
 
         # TRAIN G
         
-        g.zero_grad()
-        if(epoch_n % GENERATOR_UPDATE_INTERVAL == 0):    
+        opt_g.zero_grad()
+        if(i % GENERATOR_UPDATE_INTERVAL == 0):    
             D_G_z = d(G_z)
             loss_G = -torch.mean(D_G_z) # maximize the outputs of fake samples
             loss_G.backward()
