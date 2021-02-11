@@ -153,11 +153,12 @@ class PRollDataset(IterableDataset):
         for i in RandomSampler(self.multitracks_paths):
             multitrack = pypianoroll.load(self.multitracks_paths[i])
             pianoroll = self.multitrack_to_pianoroll(multitrack)
-            transposed_pianoroll = self.count_notes(pianoroll)
-            if transposed_pianoroll is None:
-                continue
+            # transposed_pianoroll = self.count_notes(pianoroll)
+            # if transposed_pianoroll is None:
+            #     continue
             
-            data = self.take_samples_from_multitrack(transposed_pianoroll)
+            data = self.take_samples_from_multitrack(pianoroll)
+            # data = self.take_samples_from_multitrack(transposed_pianoroll)
             
             if data is not None:
                 yield data

@@ -54,9 +54,9 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
         z = torch.randn(b_size, LATENT_DIM).to(DEVICE)
        
         # TRAIN D
-        # Train with all real batch
-        
         opt_d.zero_grad()
+        
+        # Train with all real batch
         D_x = d(batch)
         
         loss_D_x = -torch.mean(D_x) # maximize the outputs of real samples
@@ -68,8 +68,8 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
         D_G_z = d(G_z.detach())
         
         loss_D_G_z = torch.mean(D_G_z) # minimize the outputs of fake samples
-        
         loss_D_G_z.backward()
+        
         loss_D = loss_D_x + loss_D_G_z
         
 
@@ -80,9 +80,12 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
         
         opt_d.step()
 
+        # for p in d.parameters():
+        #     p.data.clamp_(-0.01, 0.01)
+
         # TRAIN G
-        
         opt_g.zero_grad()
+        
         if(i % GENERATOR_UPDATE_INTERVAL == 0):    
             D_G_z = d(G_z)
             loss_G = -torch.mean(D_G_z) # maximize the outputs of fake samples
@@ -94,6 +97,10 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
                 D_G_z = d(G_z)
                 loss_G = -torch.mean(D_G_z)
 
+        avg_loss_D += loss_D
+        avg_loss_G += loss_G
+        avg_D_real += torch.mean(D_x)
+        avg_D_fake += torch.mean(D_G_z)
         
         
     avg_loss_D /= (i + 1)
@@ -111,8 +118,8 @@ def train(g, d, loader, opt_g, opt_d, epoch_n):
 torch.manual_seed(0)
 g = G().to(DEVICE)
 d = D().to(DEVICE)
-optimizer_d = torch.optim.RMSprop(params=d.parameters(), lr=0.00005)
-optimizer_g = torch.optim.RMSprop(params=g.parameters(), lr=0.00005)
+optimizer_d = torch.optim.RMSprop(params=d.parameters(), lr=0.005)
+optimizer_g = torch.optim.RMSprop(params=g.parameters(), lr=0.005)
 dataset = PRollDataset("data", device=DEVICE, test=TEST)
 collate = lambda batch: torch.cat([torch.tensor(b, dtype=torch.float32, device=DEVICE) for b in batch])
 train_loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=collate)
@@ -148,7 +155,7 @@ noise = torch.randn(4, LATENT_DIM).to(DEVICE)
 for epoch in range(EPOCHS):
     epoch += last_epoch + 1
     avg_loss_D, avg_loss_G, avg_D_real, avg_D_fake = train(g, d, train_loader, optimizer_g, optimizer_d, epoch)
-    print(f"D_loss: {avg_loss_D:.5f}, G_loss: {avg_loss_G:.5f}, D_real: {avg_D_real:.5f}, D_fake: {avg_D_fake:.5f}")
+    print(f"D_loss: {avg_loss_D:.4f}, G_loss: {avg_loss_G:.4f}, D_real: {avg_D_real:.4f}, D_fake: {avg_D_fake:.4f}")
 
     # Save model
     if(not TEST):
