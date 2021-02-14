@@ -5,6 +5,7 @@ from configuration import *
 
 
 class DiscriminatorBlock(nn.Module):
+
     def __init__(self, in_dim, out_dim, kernel, stride, feature_shape):
         super().__init__()
         self.transconv = nn.Conv3d(in_dim, out_dim, kernel, stride)
@@ -29,7 +30,7 @@ class D(nn.Module):
             for _ in range(N_TRACKS)
         ])
         # common layers from now on
-        self.conv2 = DiscriminatorBlock(16 * 5, 64, kernel=(1, 1, 3), stride=(1, 1, 1), feature_shape=[64, 4, 4, 4])
+        self.conv2 = DiscriminatorBlock(16 * N_TRACKS, 64, kernel=(1, 1, 3), stride=(1, 1, 1), feature_shape=[64, 4, 4, 4])
         self.conv3 = DiscriminatorBlock(64, 64, kernel=(1, 1, 4), stride=(1, 1, 4), feature_shape=[64, 4, 4, 1])
         self.conv4 = DiscriminatorBlock(64, 128, kernel=(1, 4, 1), stride=(1, 4, 1), feature_shape=[128, 4, 1, 1])
         self.conv5 = DiscriminatorBlock(128, 128, kernel=(2, 1, 1), stride=(1, 1, 1), feature_shape=[128, 3, 1, 1])
@@ -40,7 +41,6 @@ class D(nn.Module):
             nn.Linear(64, 1)
         )
         
-
 
     def forward(self, x):
         batch_size = x.shape[0]
@@ -56,6 +56,5 @@ class D(nn.Module):
         x = self.conv5(x)
         x = self.conv6(x)
         x = x.view(batch_size, 256)
-        x = self.dense(x)
-        return x
+        return self.dense(x)
 

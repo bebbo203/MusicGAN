@@ -9,10 +9,18 @@ import pypianoroll
 from configuration import *
 
 
-
         
 class PRollDataset(IterableDataset):
-    def __init__(self, dataset_path, device="cuda", test = False):
+
+    def __init__(self, dataset_path, device=DEVICE, test=False):
+        """
+        Constructor
+
+            Parameters:
+                dataset_path (str): path to the dataset file
+                device (str | torch.device): device to which the tensors are moved
+                test (bool): whether is a test version
+        """
         self.dataset_path = dataset_path
         self.device = device
         self.test = test
@@ -30,6 +38,12 @@ class PRollDataset(IterableDataset):
 
     
     def load_multitracks(self):
+        """
+        Helper to load all the file's paths
+
+            Returns:
+                multitracks (List[str]): list of desired file paths (songs)
+        """
         def from_id_to_path(ids):
             return os.path.join(ids[2], ids[3], ids[4], ids)
 
@@ -43,16 +57,14 @@ class PRollDataset(IterableDataset):
         #     if(len(file) > 0):
         #         list_of_ids.append(path.split("/")[-1])
 
-        #Use this if you want to load only specific tracks
+        # Use this if you want to load only specific tracks
         list_of_files = os.listdir(os.path.join(self.dataset_path, "lastfm"))
         
         for file in list_of_files:
-            if(file in ["id_list_pop.txt"]):
+            if file in GENRES:
                 with open(os.path.join(self.dataset_path, "lastfm", file), 'r') as f:
                     for id in f:
                         list_of_ids.append(id.strip())
-
-
 
         # Load all the dataset in multitracks
         multitracks = []
@@ -61,17 +73,27 @@ class PRollDataset(IterableDataset):
 
             file_name = os.listdir(path)[0]
             file_path = os.path.join(path, file_name)
+            # The same song can appears in more genres
             if(file_path not in multitracks):
                 multitracks.append(file_path)
-            #multitracks.append(pypianoroll.load(os.path.join(path, file_name)))
+            
+            # Take the first 100 elements only if is a test version
             if(self.test and i > 100):
                 break
 
-        
-
         return multitracks
 
+
     def take_samples_from_multitrack(self, pianoroll):
+        """
+        Take N_SAMPLES_PER_SONG samples from a pianoroll 
+
+            Parameters:
+                pianoroll (numpy.ndarray): pianoroll tensor
+
+            Returns:
+                samples (numpy.ndarray): pianoroll tensor
+        """
        
         # Pick only the center pitches
         pr = pianoroll[:, :, self.lowest_pitch:self.lowest_pitch + self.n_pitches]
@@ -84,7 +106,6 @@ class PRollDataset(IterableDataset):
             start = idx * self.measure_length
             end = (idx + self.n_measures_for_sample) * self.measure_length
             # At least one instrument in the sample must have at least 10 notes
-            #if((pr[:, start:end].sum(axis=(1, 2)) < 1).any()):
             n_notes = np.count_nonzero(pr[:, start:end])
             if(n_notes < 500 and n_notes > 10):
                 data.append(pr[:, start:end])
@@ -95,17 +116,44 @@ class PRollDataset(IterableDataset):
         return np.stack(data) if data else None
 
     def multitrack_to_pianoroll(self, multitrack):
+        """
+        Return a pianoroll of the right format from a multritrack object
+
+            Parameters:
+                multitrack (pypianoroll.multitrack): multitrack object that will be converted
+            
+            Returns:
+                pianoroll (numpy.ndarray): pianoroll tensor
+        """
+        
+        
         # Make the pianoroll of boolean type
         multitrack.binarize()
         # Set the resolution of a beat (in this case the min length of a note is 1/4)
         multitrack.set_resolution(self.beat_resolution)
+        # Remove the undesired tracks
+        for i in reversed(range(len(multitrack.tracks))):
+            if multitrack.tracks[i].name not in TRACK_NAMES:
+                del multitrack.tracks[i]
         # Get the complete pianoroll (shape: n_tracks x n_timesteps x n_pitches)
-        pr = multitrack.stack() > 0
-
-        return pr
+        return multitrack.stack() > 0
 
 
-    def count_notes(self, pianoroll):
+    def scale_detector(self, pianoroll):
+        """
+        To limit the presence of dissonant scales in the dataset,
+        this functions rejects the song that do not contains major (or minor) scales.
+        To recognize the scale used by each song, the 7 most frequent notes are compared
+        with all the major scales normalized to the tone 0. This is not a precise method.
+        If the pianoroll use a major (or minor) scale, it is transposed to the right tone.
+
+            Parameters:
+                pianoroll (numpy.ndarray): pianoroll tensor
+            
+            Returns:
+                pianoroll (numpy.ndarray): pianoroll tensor
+        """
+        
         major_scales = [
             [0,2,4,5,7,9,11],
             [0,1,3,5,6,8,10],
@@ -120,6 +168,7 @@ class PRollDataset(IterableDataset):
             [0,2,3,5,7,9,10],
             [1,3,4,6,8,10,11]
         ]
+        
         # Discard the drums track
         pr = pianoroll[1:, :, :]
         notes = np.argwhere(pr == True)[:, 2]
@@ -140,60 +189,41 @@ class PRollDataset(IterableDataset):
                 break
         # If we have a major (or minor) scale transpose the song
         if(offset != -1):
-            drums = pianoroll[0, :, :]
-            zeros_line = np.zeros((5, pianoroll.shape[1], offset))
 
+            drums = pianoroll[0, :, :]
+            zeros_line = np.zeros((N_TRACKS, pianoroll.shape[1], offset))
             pianoroll = pianoroll[:, :, offset:]
             pianoroll = np.concatenate((pianoroll, zeros_line), axis=2)
             pianoroll[0, :, :] = drums
 
         return pianoroll if offset != -1 else None
-        
+
+
     def __iter__(self):
+        
         for i in RandomSampler(self.multitracks_paths):
+            # Load a random sample a pianoroll among the loaded ones
             multitrack = pypianoroll.load(self.multitracks_paths[i])
             pianoroll = self.multitrack_to_pianoroll(multitrack)
-            # transposed_pianoroll = self.count_notes(pianoroll)
-            # if transposed_pianoroll is None:
-            #     continue
+
+            # Get the pitch-transposed pianoroll
+            transposed_pianoroll = self.scale_detector(pianoroll)
+            if transposed_pianoroll is None: continue
             
-            data = self.take_samples_from_multitrack(pianoroll)
-            # data = self.take_samples_from_multitrack(transposed_pianoroll)
-            
+            data = self.take_samples_from_multitrack(transposed_pianoroll)
             if data is not None:
                 yield data
 
-    def __getitem__(self, index):
-        path = self.multitracks_paths[index]
-        multitrack = pypianoroll.load(path)
-        return self.take_samples_from_multitrack(multitrack)
 
     def __len__(self):
         return len(self.multitracks_paths) * self.n_samples_per_song
 
 
-if(__name__ == "__main__"):
-
-    def collate(batch):
-        batch = [torch.tensor(b, device=DEVICE) for b in batch]
-        return torch.cat(batch, dim=0)
 
 
-    d = PRollDataset("data", test = False)
-    print(len(d.multitracks_paths))
 
-    for elem in d:
-        print(elem.shape)
-
-   
-    exit()
-
-    dl = DataLoader(d, batch_size = 32 // N_SAMPLES_PER_SONG, collate_fn = collate)
-
-    for elem in dl:
-        print(elem)
-        
 """
+    The following is the list of genres file with the respective number of songs.
 
    1475 ./id_list_favorite.txt
       0 ./id_list_progressive-rock.txt

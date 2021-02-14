@@ -16,6 +16,7 @@ class GeneraterBlock(nn.Module):
         return nn.functional.relu(x)
 
 class G(nn.Module):
+    
     def __init__(self):
         super().__init__()
         self.transconv0 = GeneraterBlock(LATENT_DIM, 256, kernel=(4, 1, 1), stride=(4, 1, 1))
