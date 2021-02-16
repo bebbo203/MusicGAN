@@ -1,3 +1,3 @@
 #!/bin/bash
 
-timidity -Ow -o - tester.mid | lame - tester.mp3
+timidity -Ow -o - test.mid | lame - tester.mp3

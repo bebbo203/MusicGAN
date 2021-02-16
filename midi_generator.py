@@ -84,12 +84,12 @@ if(__name__ == "__main__"):
 
 
     # Instantiate the generator model and set it to the eval mode
-    g = G().to(DEVICE)
+    g = G()
     g.load_state_dict(checkpoint["generator"])
     g.eval()
     
     # Define a normal random vector as input noise
-    noise = torch.randn(4, LATENT_DIM)
+    noise = torch.randn(1, LATENT_DIM)
     # Generate and store the MIDI file
     with torch.no_grad():
         samples = g(noise).cpu().numpy()
