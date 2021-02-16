@@ -24,7 +24,16 @@ All the songs were converted to 3-dimensional tensors (of shapes \[Time,Track,Pi
 
 ## Architecture
 
-As mentioned above, the neural network used is composed of three-dimensional convolutional layers which, in fact, apply a classic convolution to every matrix formed by each instrument pianoroll. 
+As mentioned above, the neural network used is composed of three-dimensional convolutional layers which, in fact, apply a classic convolution to every matrix formed by each instrument pianoroll.
+
+This is a simple scheme of the discriminator.
+
+<img src="readme/Discriminator.png" width="400" height="242">
+
+And this is a simple scheme of the generator.
+
+
+<img src="readme/Generator.png" width="400" height="242">
 
 ## Results
 
