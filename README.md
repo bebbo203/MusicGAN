@@ -33,9 +33,10 @@ After an about 100 epochs long training, these are the results obtained. One thi
 Letting the network listen only to songs from the 80s, this is what came out:
 
 A plot of the generator loss over the 190 epochs:
-![Generator Loss](readme/Loss_Generator.png =500x500)
+![Generator Loss](readme/Loss_Generator.png | =500x500)
+<img src="readme/Loss_Generator.png" alt="Generator Loss" width="500" height="500">
 
-[song_1](readme/80s_1.mp3) 
+Song 1:[play](readme/80s_1.mp3) 
 
 [song_2](readme/80s_2.mp3)
 
