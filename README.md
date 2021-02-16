@@ -12,7 +12,7 @@ After some preprocessing, the songs are used as input to train the Wassertein GA
 ## Dataset
 
 As [dataset](http://colinraffel.com/projects/lmd/), a collection of songs in pianoroll format was used. Each song contains 5 instruments, and the notes played by
-each instrument at any time. The dataset contains ~20000 different songs that were converted to pianorolls (tensors) from MIDI files.
+each instrument at any time. The dataset contains ~20000 different songs represented as a Multitrack object, with each one containing the piano roll of the song.  
 
 ## Preprocessing
 
