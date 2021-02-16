@@ -34,7 +34,7 @@ Letting the network listen only to songs from the 80s, this is what came out:
 
 A plot of the generator loss over the 190 epochs:
 
-<img src="readme/Loss_Generator.png" width="500" height="500">
+<img src="readme/Loss_Generator.png" width="400" height="242">
 
 Samples are in the readme folder.
 
