@@ -7,12 +7,12 @@ A WGAN implementation that produces short pieces of music.
 
 By looking at a song under a different point of view, it's possible to observe (or hear) many patterns, from scales to rhythms. 
 It's well known that GANs have the ability of finding, learning and reproducing patterns on images.
-After some preprocessing, the songs are used as input to train a [particular type of GAN](https://arxiv.org/pdf/1701.07875.pdf), i.e. the Wassertein GAN.
+After some preprocessing, the songs are used as input to train the Wassertein GAN, a [particular type of GAN](https://arxiv.org/pdf/1701.07875.pdf).
 
 ## Dataset
 
 As [dataset](http://colinraffel.com/projects/lmd/), a collection of songs in pianoroll format was used. Each song contains 5 instruments, and the notes played by
-each instrument at any time. The dataset contains 176581 different songs that were converted to pianorolls (tensors) from MIDI files.
+each instrument at any time. The dataset contains ~20000 different songs that were converted to pianorolls (tensors) from MIDI files.
 
 ## Preprocessing
 
@@ -41,7 +41,7 @@ Here instead, the input is a vector of zero-mean and unitary std Gaussian noise 
 
 ## Results
 
-After an about 100 epochs long training, these are the results obtained. One thing to note is that the output of the network is not postprocessed aside from choosing the instruments (midi channels) to be used in the reproduction. 
+After a ~100 epochs long training, these are the results obtained. One thing to note is that the output of the network is not postprocessed aside from choosing the instruments (midi channels) to be used in the reproduction. 
 
 Letting the network listen only to songs from the 80s, this is what came out:
 
